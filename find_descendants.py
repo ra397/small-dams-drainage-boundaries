@@ -29,6 +29,6 @@ def get_all_descendants(lookup: dict[int, list[int]], start_id: int) -> frozense
     return frozenset(visited)
 
 tree = build_children_lookup(df)
-print(get_all_descendants(tree, 11915629))
-print(get_all_descendants(tree, 11915723))
-print(get_all_descendants(tree, 17540805))
+
+output = [int(i) for i in list(get_all_descendants(tree, 17540805))]
+print(output)
