@@ -17,7 +17,7 @@ The traditional approach uses a Digital Elevation Model (DEM) with a D8 flow dir
 3. Starting at the dam's pixel, recursively trace all cells whose flow arrows point into it
 
 ![D8 Algorithm Illustration](images/d8_algorithm_illustration.png)
-*Traditional DEM-based watershed delineation: compute elevation grid, derive D8 flow directions, then trace all cells draining to the pour point.*
+<p align="center"><em>Traditional DEM-based watershed delineation: compute elevation grid, derive D8 flow directions, then trace all cells draining to the pour point.</em></p>
 
 The problem is that **this method is extremely sensitive to the dam's exact coordinates**. The NID small dams dataset has positional errors of ~30–50 meters — shifting the pour point by even one DEM pixel can produce a completely different watershed.
 
@@ -50,9 +50,9 @@ For each dam's `flowpath_id`, perform a BFS traversal up the river network tree:
 For each dam, load the WKB geometries of all its upstream catchments, run `make_valid` to fix any topology issues, then `unary_union` them into a single polygon. Write each result as `outputs/{dam_id}.geojson` (EPSG:5070).
 
 ![Hydrofabric Algorithm Illustration](images/algorithm_illustration.png)
-*Hydrofabric-based approach: identify the dam's catchment, traverse upstream through the river network via BFS, then union all visited catchment geometries into the drainage boundary.*
-## Setup
+<p align="center"><em>Hydrofabric-based approach: identify the dam's catchment, traverse upstream through the river network via BFS, then union all visited catchment geometries into the drainage boundary.</em></p>
 
+## Setup
 Requires Python 3.13.
 
 ```bash
