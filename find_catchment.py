@@ -1,36 +1,35 @@
-from shapely.geometry import Point
+from shapely.geometry import Point, box
 from shapely import STRtree, from_wkb
 import pyarrow.parquet as pq
 import csv
 import multiprocessing as mp
+import os
 
-# Shared data paths
-PARQUET_PATH = "catchments/illinois.parquet"
+CATCHMENTS_DIR = "catchments/"
 CSV_PATH = "small_dams_5070.csv"
 OUTPUT_PATH = "dam_flowpaths.csv"
 
-def init_worker(geom_wkb, flowpath_ids):
-    """Each worker builds its own STRtree from shared WKB bytes."""
-    global _tree, _flowpath_ids, _geometries
-    _geometries = [from_wkb(wkb) for wkb in geom_wkb]
-    _tree = STRtree(_geometries)
-    _flowpath_ids = flowpath_ids
+def process_state(args):
+    parquet_path, dams = args
 
-def query_dam(dam):
-    """Query a single dam point against the tree."""
-    point = Point(dam["x"], dam["y"])
-    idx = _tree.query(point, predicate="within")
-    if len(idx) > 0:
-        return (dam["dam_id"], int(_flowpath_ids[idx[0]]))
-    return None
-
-if __name__ == "__main__":
-    # Load parquet
-    table = pq.read_table(PARQUET_PATH)
-    geom_wkb = table.column("geom").to_pylist()
+    # Load this state's catchments
+    table = pq.read_table(parquet_path)
+    geometries = [from_wkb(wkb) for wkb in table.column("geom").to_pylist()]
     flowpath_ids = table.column("flowpath_id").to_pylist()
 
-    # Read high-hazard dams
+    tree = STRtree(geometries)
+
+    results = []
+    for dam in dams:
+        point = Point(dam["x"], dam["y"])
+        idx = tree.query(point, predicate="within")
+        if len(idx) > 0:
+            results.append((dam["dam_id"], int(flowpath_ids[idx[0]])))
+
+    return results
+
+if __name__ == "__main__":
+    # Read all high-hazard dams
     dams = []
     with open(CSV_PATH, "r") as f:
         reader = csv.DictReader(f)
@@ -41,17 +40,37 @@ if __name__ == "__main__":
                     "x": float(row["x_5070"]),
                     "y": float(row["y_5070"])
                 })
+    print(f"Total dams: {len(dams)}")
 
-    # Process in parallel
-    with mp.Pool(
-        processes=mp.cpu_count(),
-        initializer=init_worker,
-        initargs=(geom_wkb, flowpath_ids)
-    ) as pool:
-        results = pool.map(query_dam, dams, chunksize=100)
+    # Build work list: for each parquet, find dams within its bbox
+    parquet_files = [
+        os.path.join(CATCHMENTS_DIR, f)
+        for f in os.listdir(CATCHMENTS_DIR) if f.endswith(".parquet")
+    ]
 
-    # Filter out misses and write
-    results = [r for r in results if r is not None]
+    work = []
+    for pf in parquet_files:
+        table = pq.read_table(pf, columns=["geom"])
+        bounds = [from_wkb(wkb).bounds for wkb in table.column("geom").to_pylist()]
+        minx = min(b[0] for b in bounds)
+        miny = min(b[1] for b in bounds)
+        maxx = max(b[2] for b in bounds)
+        maxy = max(b[3] for b in bounds)
+        envelope = box(minx, miny, maxx, maxy)
+
+        state_dams = [
+            d for d in dams if envelope.contains(Point(d["x"], d["y"]))
+        ]
+        if state_dams:
+            work.append((pf, state_dams))
+            print(f"{os.path.basename(pf)}: {len(state_dams)} dams")
+
+    # Process each state in parallel
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        all_results = pool.map(process_state, work)
+
+    # Flatten and write
+    results = [r for batch in all_results for r in batch]
 
     with open(OUTPUT_PATH, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["dam_id", "flowpath_id"])
@@ -59,4 +78,4 @@ if __name__ == "__main__":
         for dam_id, flowpath_id in results:
             writer.writerow({"dam_id": dam_id, "flowpath_id": flowpath_id})
 
-    print(f"Matched {len(results)} dams")
+    print(f"Matched {len(results)} / {len(dams)} dams")
