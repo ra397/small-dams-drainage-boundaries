@@ -151,8 +151,7 @@ map.data.setStyle({
 ```
 
 ## Limitations
-To evaluate the methodology, each computed drainage area was compared against the reported drainage area from the NID's `small_dams.csv`. Percent error was calculated as:
-$$\frac{|\text{computed area} - \text{NID area}|}{\text{NID area}} \times 100$$<br>
+To evaluate the methodology, each computed drainage area was compared against the reported drainage area from the NID's `small_dams.csv`.
 ![Error Distribution](images/error_distribution.png)
 
 About 36% of dams have less than 10% error, and roughly half fall within 40%. However, 41% of dams have errors exceeding 100%.
