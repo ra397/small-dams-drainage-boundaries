@@ -97,6 +97,29 @@ Each dam produced a GeoJSON file containing its upstream drainage boundary.
 ![Drainage boundary for dam IA00012](images/result_example.png)
 *Drainage boundary for dam IA00012 (red dot) near Iowa City. The computed upstream area covers approximately 8,052 km².*
 
+## Preparing Data for the Web
+
+The pipeline outputs GeoJSON in EPSG:5070 (NAD83 CONUS Albers), which is ideal for area calculations but not directly usable by web mapping libraries. Two additional steps convert the data for use with the Google Maps JavaScript API.
+
+### Step 1: Reproject to WGS 84 (`reproject_output.py`)
+
+Google Maps expects coordinates in EPSG:4326 (WGS 84 — latitude/longitude). This script reprojects each GeoJSON file from EPSG:5070 to EPSG:4326 using PyProj's `Transformer`, preserving the original polygon structure.
+```bash
+python reproject_output.py
+```
+
+Outputs reprojected files to `reprojected_outputs/`.
+
+### Step 2: Convert to Protocol Buffers (`geojson_to_pbf.py`)
+
+Converting to Protocol Buffer format (`.pbf`) significantly reduces file size
+compared to verbose GeoJSON text, making network transfer to the client faster.
+```bash
+python geojson_to_pbf.py
+```
+
+Outputs `.pbf` tiles to `tiles/`.
+
 ## Limitations
 In some areas, **Hydrofabric catchments are coarse**. A dam may fall into a single large catchment connected to an extensive upstream network. In reality, that area should be subdivided into smaller catchments with more localized drainage. This causes the computed drainage boundary to be **overestimated**, including areas that don't actually contribute flow to the dam.
 ![Overestimated drainage boundary](images/limitations_example.png)
