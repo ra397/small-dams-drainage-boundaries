@@ -151,6 +151,23 @@ map.data.setStyle({
 ```
 
 ## Limitations
-In some areas, **Hydrofabric catchments are coarse**. A dam may fall into a single large catchment connected to an extensive upstream network. In reality, that area should be subdivided into smaller catchments with more localized drainage. This causes the computed drainage boundary to be **overestimated**, including areas that don't actually contribute flow to the dam.
+To evaluate the methodology, each computed drainage area was compared against the reported drainage area from the NID's `small_dams.csv`. Percent error was calculated as:
+$$\frac{|\text{computed area} - \text{NID area}|}{\text{NID area}} \times 100$$
+![Error Distribution](images/error_distribution.png)
+
+About 36% of dams have less than 10% error, and roughly half fall within 40%. However, 41% of dams have errors exceeding 100%.
+
+![Area vs % Error](images/area_vs_error.png)
+
+Accuracy is strongly correlated with drainage area size. For dams with drainage areas above ~10 square miles, median error stays between 2–5% with strong sample sizes (n=1,437 for 10–100 sq mi, n=779 for 100–1,000 sq mi). Error increases in the 1–10 sq mi range, and the method breaks down below 1 square mile, where the Hydrofabric's catchment resolution is too coarse relative to the drainage area being measured. The uptick at 100,000+ sq mi is not meaningful (n=8).
+
+Large overestimates occur when a dam falls into a coarse, poorly subdivided catchment connected to an extensive upstream network. In reality, that catchment should be subdivided into smaller units with more localized drainage, but the BFS traversal captures the entire upstream area indiscriminately.
+
 ![Overestimated drainage boundary](images/limitations_example.png)
 *Example of an overestimated drainage boundary. The dam falls into a coarse catchment (shaded green) connected to a large upstream network, resulting in a computed area (shaded red) that includes land not actually contributing flow to the dam.*
+
+Large underestimates occur because the Hydrofabric network does not capture the full complexity of the real river network, missing connections that should exist and causing the traversal to terminate before reaching all contributing upstream area.
+
+## Conclusions
+
+The Hydrofabric-based approach is a practical alternative to DEM delineation for dams with drainage areas above ~10 square miles, where it consistently produces results within 2–5% of NID-reported values. Below that threshold, the catchment resolution becomes too coarse relative to the drainage area, and errors grow rapidly. For small dams on minor tributaries — which make up a significant portion of the NID — this method is not reliable on its own and would need to be supplemented with DEM-based delineation or a finer-resolution network.
