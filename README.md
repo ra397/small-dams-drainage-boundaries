@@ -118,7 +118,37 @@ compared to verbose GeoJSON text, making network transfer to the client faster.
 python geojson_to_pbf.py
 ```
 
-Outputs `.pbf` tiles to `tiles/`.
+Outputs `.pbf` files.
+
+
+### Step 3: Visualize in the Browser
+
+Install the required npm packages:
+```bash
+npm install @googlemaps/js-api-loader pbf geobuf
+```
+
+Core loading logic:
+```javascript
+import Pbf from "pbf";
+import geobuf from "geobuf";
+
+async function loadPbf(url) {
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+    const pbf = new Pbf(new Uint8Array(buffer));
+    return geobuf.decode(pbf);
+}
+
+const geojson = await loadPbf("/IA00012.pbf");
+map.data.addGeoJson(geojson);
+map.data.setStyle({
+    fillColor: "#4285F4",
+    fillOpacity: 0.3,
+    strokeColor: "#4285F4",
+    strokeWeight: 1.5,
+});
+```
 
 ## Limitations
 In some areas, **Hydrofabric catchments are coarse**. A dam may fall into a single large catchment connected to an extensive upstream network. In reality, that area should be subdivided into smaller catchments with more localized drainage. This causes the computed drainage boundary to be **overestimated**, including areas that don't actually contribute flow to the dam.
